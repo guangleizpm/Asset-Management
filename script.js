@@ -6,25 +6,128 @@ let currentSortColumn = 'date';
 let sortDirection = 'desc';
 
 // DOM Elements
-const dropZone = document.getElementById('dropZone');
-const fileInput = document.getElementById('fileInput');
-const imageTableBody = document.getElementById('imageTableBody');
-const searchInput = document.getElementById('searchInput');
-const categoryFilter = document.getElementById('categoryFilter');
-const uploadBtn = document.getElementById('uploadBtn');
-const imageModal = document.getElementById('imageModal');
-const previewImage = document.getElementById('previewImage');
-const closeModal = document.getElementById('closeModal');
-const imageTitle = document.getElementById('imageTitle');
-const imageTags = document.getElementById('imageTags');
-const imageCategory = document.getElementById('imageCategory');
-const imageDescription = document.getElementById('imageDescription');
-const saveImageDetails = document.getElementById('saveImageDetails');
-const deleteImage = document.getElementById('deleteImage');
-const prevPage = document.getElementById('prevPage');
-const nextPage = document.getElementById('nextPage');
-const currentPageSpan = document.getElementById('currentPage');
-const totalPagesSpan = document.getElementById('totalPages');
+let dropZone, fileInput, imageTableBody, searchInput, categoryFilter, uploadBtn, 
+    imageModal, previewImage, closeModal, imageTitle, imageTags, imageCategory, 
+    imageDescription, saveImageDetails, deleteImage, prevPage, nextPage, 
+    currentPageSpan, totalPagesSpan;
+
+// Initialize DOM Elements
+function initializeDOMElements() {
+    dropZone = document.getElementById('dropZone');
+    fileInput = document.getElementById('fileInput');
+    imageTableBody = document.getElementById('imageTableBody');
+    searchInput = document.getElementById('searchInput');
+    categoryFilter = document.getElementById('categoryFilter');
+    uploadBtn = document.getElementById('uploadBtn');
+    imageModal = document.getElementById('imageModal');
+    previewImage = document.getElementById('previewImage');
+    closeModal = document.getElementById('closeModal');
+    imageTitle = document.getElementById('imageTitle');
+    imageTags = document.getElementById('imageTags');
+    imageCategory = document.getElementById('imageCategory');
+    imageDescription = document.getElementById('imageDescription');
+    saveImageDetails = document.getElementById('saveImageDetails');
+    deleteImage = document.getElementById('deleteImage');
+    prevPage = document.getElementById('prevPage');
+    nextPage = document.getElementById('nextPage');
+    currentPageSpan = document.getElementById('currentPage');
+    totalPagesSpan = document.getElementById('totalPages');
+
+    // Verify critical elements
+    if (!dropZone || !fileInput || !imageTableBody) {
+        console.error('Critical DOM elements not found!');
+        return false;
+    }
+    return true;
+}
+
+// Initialize Event Listeners
+function initializeEventListeners() {
+    // File Upload Event Listeners
+    dropZone.addEventListener('click', () => {
+        console.log('Drop zone clicked');
+        fileInput.click();
+    });
+
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log('Drag over event');
+        dropZone.classList.add('drag-over');
+    });
+
+    dropZone.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log('Drag leave event');
+        dropZone.classList.remove('drag-over');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log('Drop event occurred');
+        dropZone.classList.remove('drag-over');
+        
+        const files = e.dataTransfer.files;
+        console.log('Dropped files:', files);
+        handleFiles(Array.from(files));
+    });
+
+    fileInput.addEventListener('change', (e) => {
+        console.log('File input change event');
+        const files = e.target.files;
+        console.log('Selected files:', files);
+        handleFiles(Array.from(files));
+    });
+
+    // Other event listeners
+    if (searchInput) {
+        searchInput.addEventListener('input', filterImages);
+    }
+    if (categoryFilter) {
+        categoryFilter.addEventListener('change', filterImages);
+    }
+    if (closeModal) {
+        closeModal.addEventListener('click', () => imageModal.classList.add('hidden'));
+    }
+    if (prevPage) {
+        prevPage.addEventListener('click', () => changePage(-1));
+    }
+    if (nextPage) {
+        nextPage.addEventListener('click', () => changePage(1));
+    }
+}
+
+// Initialize on DOM content loaded
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('Initializing DOM elements...');
+    
+    if (initializeDOMElements()) {
+        console.log('DOM elements initialized successfully');
+        initializeEventListeners();
+        loadFromLocalStorage();
+    } else {
+        console.error('Failed to initialize DOM elements');
+    }
+});
+
+// Filtering and Search
+function filterImagesList() {
+    const searchTerm = searchInput?.value?.toLowerCase() || '';
+    const category = categoryFilter?.value || '';
+    
+    return images.filter(image => {
+        const matchesSearch = 
+            image.name.toLowerCase().includes(searchTerm) ||
+            (image.description || '').toLowerCase().includes(searchTerm) ||
+            (image.tags || []).some(tag => tag.toLowerCase().includes(searchTerm));
+        
+        const matchesCategory = !category || image.category === category;
+        
+        return matchesSearch && matchesCategory;
+    });
+}
 
 // Add sort event listeners
 document.querySelectorAll('th[data-sort]').forEach(th => {
@@ -77,113 +180,80 @@ function formatFileSize(bytes) {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
-// Event Listeners
-dropZone.addEventListener('dragover', handleDragOver);
-dropZone.addEventListener('dragleave', handleDragLeave);
-dropZone.addEventListener('drop', handleDrop);
-dropZone.addEventListener('click', () => fileInput.click());
-fileInput.addEventListener('change', handleFileSelect);
-uploadBtn.addEventListener('click', () => fileInput.click());
-searchInput.addEventListener('input', filterImages);
-categoryFilter.addEventListener('change', filterImages);
-closeModal.addEventListener('click', () => imageModal.classList.add('hidden'));
-prevPage.addEventListener('click', () => changePage(-1));
-nextPage.addEventListener('click', () => changePage(1));
-
-// Drag and Drop Handlers
-function handleDragOver(e) {
-    e.preventDefault();
-    dropZone.classList.add('drag-over');
-}
-
-function handleDragLeave(e) {
-    e.preventDefault();
-    dropZone.classList.remove('drag-over');
-}
-
-function handleDrop(e) {
-    e.preventDefault();
-    dropZone.classList.remove('drag-over');
-    const files = Array.from(e.dataTransfer.files).filter(file => file.type.startsWith('image/'));
-    handleFiles(files);
-}
-
-function handleFileSelect(e) {
-    const files = Array.from(e.target.files);
-    handleFiles(files);
-}
-
-// File Processing
-async function handleFiles(files) {
-    for (const file of files) {
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-            const now = new Date();
-            const image = {
-                id: await generateTimestampUUID(),
-                src: e.target.result,
-                name: file.name,
-                tags: [],
-                category: '',
-                description: '',
-                date: now.toISOString(),
-                size: file.size,
-                uploader: "guanglei.zhang",
-                uuid: await generateTimestampUUID(),
-                timestamp: now.getTime()
-            };
-            images.unshift(image);
-            saveToLocalStorage();
-            renderImages();
-        };
-        reader.readAsDataURL(file);
-    }
-}
-
 // Image Display
 function renderImages() {
-    const filteredImages = filterImagesList();
+    console.log('Rendering images. Total images:', images.length);
     
-    // Sort images
-    filteredImages.sort((a, b) => {
-        let comparison = 0;
-        switch (currentSortColumn) {
-            case 'name':
-                comparison = a.name.localeCompare(b.name);
-                break;
-            case 'date':
-                comparison = new Date(a.date) - new Date(b.date);
-                break;
-            case 'size':
-                comparison = a.size - b.size;
-                break;
-            case 'category':
-                comparison = a.category.localeCompare(b.category);
-                break;
-            case 'uploader':
-                comparison = a.uploader.localeCompare(b.uploader);
-                break;
-            case 'uuid':
-                comparison = a.uuid.localeCompare(b.uuid);
-                break;
-            default:
-                comparison = new Date(a.date) - new Date(b.date);
+    try {
+        const filteredImages = filterImagesList();
+        console.log('Filtered images:', filteredImages.length);
+        
+        // Sort images
+        filteredImages.sort((a, b) => {
+            let comparison = 0;
+            switch (currentSortColumn) {
+                case 'name':
+                    comparison = a.name.localeCompare(b.name);
+                    break;
+                case 'date':
+                    comparison = new Date(a.date) - new Date(b.date);
+                    break;
+                case 'size':
+                    comparison = a.size - b.size;
+                    break;
+                case 'category':
+                    comparison = (a.category || '').localeCompare(b.category || '');
+                    break;
+                case 'uploader':
+                    comparison = (a.uploader || '').localeCompare(b.uploader || '');
+                    break;
+                case 'uuid':
+                    comparison = (a.uuid || '').localeCompare(b.uuid || '');
+                    break;
+                default:
+                    comparison = new Date(b.date) - new Date(a.date); // Default to newest first
+            }
+            return sortDirection === 'asc' ? comparison : -comparison;
+        });
+
+        const totalPages = Math.ceil(filteredImages.length / imagesPerPage);
+        const start = (currentPage - 1) * imagesPerPage;
+        const end = start + imagesPerPage;
+        const pageImages = filteredImages.slice(start, end);
+
+        console.log('Rendering page', currentPage, 'of', totalPages);
+        console.log('Displaying images', start + 1, 'to', end);
+
+        // Clear the table body
+        if (imageTableBody) {
+            imageTableBody.innerHTML = '';
+            
+            if (pageImages.length === 0) {
+                imageTableBody.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="px-6 py-4 text-center text-gray-500">
+                            No images found
+                        </td>
+                    </tr>
+                `;
+            } else {
+                pageImages.forEach(image => {
+                    try {
+                        const row = createTableRow(image);
+                        imageTableBody.appendChild(row);
+                    } catch (error) {
+                        console.error('Error creating row for image:', image, error);
+                    }
+                });
+            }
+
+            updatePagination(totalPages);
+        } else {
+            console.error('imageTableBody element not found!');
         }
-        return sortDirection === 'asc' ? comparison : -comparison;
-    });
-
-    const totalPages = Math.ceil(filteredImages.length / imagesPerPage);
-    const start = (currentPage - 1) * imagesPerPage;
-    const end = start + imagesPerPage;
-    const pageImages = filteredImages.slice(start, end);
-
-    imageTableBody.innerHTML = '';
-    pageImages.forEach(image => {
-        const row = createTableRow(image);
-        imageTableBody.appendChild(row);
-    });
-
-    updatePagination(totalPages);
+    } catch (error) {
+        console.error('Error rendering images:', error);
+    }
 }
 
 function createTableRow(image) {
@@ -333,35 +403,45 @@ function filterImages() {
     renderImages();
 }
 
-function filterImagesList() {
-    const searchTerm = searchInput.value.toLowerCase();
-    const category = categoryFilter.value;
+// Pagination
+function updatePagination(totalPages) {
+    currentPageSpan.textContent = currentPage;
+    totalPagesSpan.textContent = totalPages;
     
-    return images.filter(image => {
-        const matchesSearch = 
-            image.name.toLowerCase().includes(searchTerm) ||
-            image.description.toLowerCase().includes(searchTerm) ||
-            image.tags.some(tag => tag.toLowerCase().includes(searchTerm));
-        
-        const matchesCategory = !category || image.category === category;
-        
-        return matchesSearch && matchesCategory;
+    // Update button states
+    prevPage.disabled = currentPage === 1;
+    nextPage.disabled = currentPage === totalPages;
+
+    // Add page input functionality
+    const pageInput = document.createElement('input');
+    pageInput.type = 'number';
+    pageInput.min = 1;
+    pageInput.max = totalPages;
+    pageInput.value = currentPage;
+    pageInput.className = 'w-16 px-2 py-1 text-center border rounded-md mx-2';
+    
+    // Replace the current page span with the input
+    currentPageSpan.parentNode.replaceChild(pageInput, currentPageSpan);
+    
+    // Add event listener for page input
+    pageInput.addEventListener('change', () => {
+        let newPage = parseInt(pageInput.value);
+        if (newPage < 1) newPage = 1;
+        if (newPage > totalPages) newPage = totalPages;
+        currentPage = newPage;
+        renderImages();
     });
 }
 
-// Pagination
 function changePage(delta) {
     const filteredImages = filterImagesList();
     const totalPages = Math.ceil(filteredImages.length / imagesPerPage);
-    currentPage = Math.max(1, Math.min(currentPage + delta, totalPages));
-    renderImages();
-}
-
-function updatePagination(totalPages) {
-    prevPage.disabled = currentPage === 1;
-    nextPage.disabled = currentPage === totalPages;
-    currentPageSpan.textContent = currentPage;
-    totalPagesSpan.textContent = totalPages;
+    
+    const newPage = currentPage + delta;
+    if (newPage >= 1 && newPage <= totalPages) {
+        currentPage = newPage;
+        renderImages();
+    }
 }
 
 // Local Storage
@@ -415,11 +495,83 @@ function loadFromLocalStorage() {
     const stored = localStorage.getItem('images');
     if (stored) {
         images = JSON.parse(stored);
+        console.log('Loaded images from localStorage:', images);
         renderImages();
     } else {
+        console.log('No images found in localStorage, initializing with placeholder images...');
         initializePlaceholderImages();
     }
 }
 
-// Initialize
-loadFromLocalStorage(); 
+// File Processing
+async function handleFiles(files) {
+    console.log('Starting to process files:', files);
+    
+    if (!files || files.length === 0) {
+        console.log('No files to process');
+        return;
+    }
+
+    try {
+        for (const file of files) {
+            console.log('Processing file:', file.name, 'Type:', file.type);
+            
+            if (!file.type.startsWith('image/')) {
+                console.log('Skipping non-image file:', file.name);
+                continue;
+            }
+
+            await processImageFile(file);
+        }
+    } catch (error) {
+        console.error('Error processing files:', error);
+    }
+}
+
+async function processImageFile(file) {
+    return new Promise((resolve, reject) => {
+        console.log('Reading file:', file.name);
+        const reader = new FileReader();
+
+        reader.onload = async (e) => {
+            try {
+                console.log('File read successfully:', file.name);
+                const now = new Date();
+                const image = {
+                    id: await generateTimestampUUID(),
+                    src: e.target.result,
+                    name: file.name,
+                    tags: [],
+                    category: '',
+                    description: '',
+                    date: now.toISOString(),
+                    size: file.size,
+                    uploader: "guanglei.zhang",
+                    uuid: await generateTimestampUUID(),
+                    timestamp: now.getTime()
+                };
+
+                console.log('Created image object:', image.name);
+                images.unshift(image);
+                saveToLocalStorage();
+                renderImages();
+                resolve();
+            } catch (error) {
+                console.error('Error processing image:', error);
+                reject(error);
+            }
+        };
+
+        reader.onerror = (error) => {
+            console.error('Error reading file:', error);
+            reject(error);
+        };
+
+        try {
+            reader.readAsDataURL(file);
+        } catch (error) {
+            console.error('Error starting file read:', error);
+            reject(error);
+        }
+    });
+} 

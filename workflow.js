@@ -33,12 +33,12 @@ document.querySelectorAll('.role-btn').forEach(btn => {
     btn.addEventListener('click', () => {
         // Remove active class from all buttons
         document.querySelectorAll('.role-btn').forEach(b => {
-            b.classList.remove('bg-blue-700', 'text-white');
-            b.classList.add('bg-white', 'text-gray-900');
+            b.classList.remove('bg-blue-700', 'text-white', 'bg-white', 'text-gray-900');
+            b.classList.add('bg-gray-100', 'text-gray-900', 'hover:bg-gray-200');
         });
         
         // Add active class to clicked button
-        btn.classList.remove('bg-white', 'text-gray-900');
+        btn.classList.remove('bg-gray-100', 'text-gray-900', 'hover:bg-gray-200');
         btn.classList.add('bg-blue-700', 'text-white');
         
         // Update current role and visibility
@@ -247,73 +247,81 @@ function formatFileSize(bytes) {
 // Approver Functions
 async function sendToAssetManagement(request) {
     // Get the images array from localStorage
-    const storedImages = localStorage.getItem('images');
-    let images = storedImages ? JSON.parse(storedImages) : [];
+    let storedImages = JSON.parse(localStorage.getItem('images')) || [];
     
-    // Create new image entry
-    const now = new Date();
-    const image = {
-        id: await generateTimestampUUID(),
+    // Create a new image object in the format expected by the image management system
+    const newImage = {
+        id: request.id,
         src: request.uploadedImage,
         name: request.filename,
         tags: [],
         category: '',
-        description: request.description,
-        date: now.toISOString(),
+        description: request.description || '',
+        date: request.uploadedAt,
         size: request.size,
-        uploader: request.uploader,
-        approver: currentRole,  // Add approver information
-        approvalDate: now.toISOString(),
-        uuid: request.uuid,  // Use the same UUID from the workflow
-        timestamp: now.getTime(),
-        workflowHistory: {
-            createdAt: request.createdAt,
-            uploadedAt: request.uploadedAt,
-            approvedAt: now.toISOString(),
-            revisionHistory: request.revisionHistory || []
-        }
+        uploader: request.uploader || "guanglei.zhang",
+        uuid: request.uuid,
+        timestamp: new Date(request.uploadedAt).getTime()
     };
-    
-    // Add to images array
-    images.unshift(image);
-    
+
+    // Add the new image to the beginning of the array
+    storedImages.unshift(newImage);
+
     // Save back to localStorage
-    localStorage.setItem('images', JSON.stringify(images));
+    localStorage.setItem('images', JSON.stringify(storedImages));
     
-    console.log('Image sent to asset management:', image);
+    console.log('Image sent to asset management:', newImage);
 }
 
 function handleApproval(requestId, isApproved, feedback = '') {
     const request = imageRequests.find(r => r.id === requestId);
     if (request) {
+        request.approvalStatus = isApproved ? 'approved' : 'rejected';
+        request.feedback = feedback;
+        
         if (isApproved) {
-            request.approvalStatus = 'approved';
-            request.status = 'completed';
-            request.approvedAt = new Date().toISOString();
-            request.approver = currentRole;
+            // Ensure all required fields are present before sending to asset management
+            if (!request.uploadedAt) {
+                request.uploadedAt = new Date().toISOString();
+            }
+            if (!request.uuid) {
+                request.uuid = generateUUID();
+            }
             
-            // Send to asset management system
-            sendToAssetManagement(request)
-                .then(() => {
-                    console.log('Successfully sent to asset management');
-                })
-                .catch(error => {
-                    console.error('Error sending to asset management:', error);
-                });
+            // Send to asset management system when approved
+            sendToAssetManagement(request);
+            
+            // Remove the approved request from the workflow
+            imageRequests = imageRequests.filter(r => r.id !== requestId);
         } else {
-            request.approvalStatus = 'rejected';
-            request.status = 'pending';  // Reset to pending for revision
-            request.feedback = feedback;
-            request.type = 'revision';   // Mark as revision request
+            // For rejections, update the request type and status
+            request.type = 'revision';
+            request.status = 'pending'; // Reset to pending to show up in creator's view
+            
+            // Store the current version in revision history if not already there
+            if (!request.revisionHistory) {
+                request.revisionHistory = [];
+            }
+            
+            // Add the current version to history with feedback
+            request.revisionHistory.push({
+                image: request.uploadedImage,
+                uploadedAt: request.uploadedAt,
+                feedback: feedback
+            });
+            
+            // Clear the current upload to allow for a new one
+            request.uploadedImage = null;
+            request.uploadedAt = null;
         }
-        request.reviewedAt = new Date().toISOString();
+        
         saveToLocalStorage();
         renderTables();
     }
 }
 
-function showImagePreview(imageData) {
-    modalPreviewImage.src = imageData;
+function showImagePreview(imageUrl) {
+    modalPreviewImage.src = imageUrl;
     previewModal.classList.remove('hidden');
 }
 
@@ -348,82 +356,69 @@ function renderPendingRequests() {
                 <div class="text-sm text-gray-500 font-mono">${request.uuid}</div>
             </td>
             <td class="px-6 py-4 whitespace-nowrap">
-                <div class="flex flex-col space-y-2">
-                    <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold ${request.type === 'revision' ? 'bg-orange-100 text-orange-800' : 'bg-yellow-100 text-yellow-800'}">
+                <div class="flex flex-col space-y-4">
+                    <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold ${request.type === 'revision' ? 'bg-orange-100 text-orange-800' : 'bg-yellow-100 text-yellow-800'} rounded-full">
                         ${request.type === 'revision' ? 'Revision Needed' : 'New Request'}
                     </span>
-                    ${request.type === 'revision' ? `
-                        <div class="flex items-start space-x-4 mt-2">
-                            <div class="flex-shrink-0">
-                                <img src="${request.uploadedImage}" 
-                                     alt="Previous version" 
-                                     class="h-16 w-16 object-cover rounded cursor-pointer"
-                                     onclick="showImagePreview('${request.uploadedImage}')"
-                                     title="Version ${request.revisionHistory.length + 1}">
-                                <div class="text-xs text-gray-500 mt-1 text-center">Version ${request.revisionHistory.length + 1}</div>
+                    
+                    ${request.revisionHistory && request.revisionHistory.length > 0 ? `
+                        <div class="border-t pt-2">
+                            <div class="text-sm font-medium text-gray-700 mb-2">
+                                <i class="fas fa-history mr-1"></i>Revision History
                             </div>
-                            <div class="flex-1">
-                                <div class="text-sm text-red-600 mb-1">
-                                    <i class="fas fa-comment-alt mr-1"></i>Feedback:
+                            ${request.revisionHistory.map((revision, index) => `
+                                <div class="flex items-start space-x-4 mb-4 ${index > 0 ? 'border-t pt-2' : ''}">
+                                    <div class="flex-shrink-0">
+                                        <img src="${revision.image}" 
+                                             alt="Version ${request.revisionHistory.length - index}" 
+                                             class="h-16 w-16 object-cover rounded cursor-pointer"
+                                             onclick="showImagePreview('${revision.image}')"
+                                             title="Version ${request.revisionHistory.length - index}">
+                                        <div class="text-xs text-gray-500 mt-1 text-center">Version ${request.revisionHistory.length - index}</div>
+                                    </div>
+                                    <div class="flex-1">
+                                        <div class="text-sm text-red-600 mb-1">
+                                            <i class="fas fa-comment-alt mr-1"></i>Feedback:
+                                        </div>
+                                        <div class="text-sm text-gray-700 bg-gray-50 p-2 rounded">
+                                            ${revision.feedback}
+                                        </div>
+                                        <div class="text-xs text-gray-500 mt-1">
+                                            Rejected on: ${formatDate(revision.uploadedAt)}
+                                        </div>
+                                    </div>
                                 </div>
-                                <div class="text-sm text-gray-700 bg-gray-50 p-2 rounded">
-                                    ${request.feedback}
-                                </div>
-                            </div>
+                            `).join('')}
                         </div>
-                        ${request.revisionHistory.map((revision, index) => `
-                            <div class="flex items-start space-x-4 mt-2 border-t pt-2">
-                                <div class="flex-shrink-0">
-                                    <img src="${revision.image}" 
-                                         alt="Version ${index + 1}" 
-                                         class="h-16 w-16 object-cover rounded cursor-pointer"
-                                         onclick="showImagePreview('${revision.image}')"
-                                         title="Version ${index + 1}">
-                                    <div class="text-xs text-gray-500 mt-1 text-center">Version ${index + 1}</div>
-                                </div>
-                                <div class="flex-1">
-                                    <div class="text-sm text-gray-500 mb-1">
-                                        <i class="fas fa-history mr-1"></i>Previous Feedback:
-                                    </div>
-                                    <div class="text-sm text-gray-700 bg-gray-50 p-2 rounded">
-                                        ${revision.feedback}
-                                    </div>
-                                </div>
-                            </div>
-                        `).reverse().join('')}
                     ` : ''}
                 </div>
             </td>
             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                 <button onclick="handleFileUpload('${request.id}')" class="text-blue-600 hover:text-blue-900">
-                    Upload ${request.type === 'revision' ? 'New Version' : 'Image'}
+                    <i class="fas fa-upload mr-1"></i>${request.type === 'revision' ? 'Upload New Version' : 'Upload Image'}
                 </button>
             </td>
         </tr>
     `).join('');
 }
 
+// Helper function to format dates
+function formatDate(dateString) {
+    if (!dateString) return 'Unknown date';
+    return new Date(dateString).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+}
+
 function renderReviewRequests() {
     console.log('Rendering review requests...');
-    console.log('All requests before filtering:', imageRequests);
-    
-    // Ensure all requests have required properties
-    imageRequests = imageRequests.map(request => ({
-        ...request,
-        revisionHistory: request.revisionHistory || [],
-        approvalStatus: request.approvalStatus || null,
-        type: request.type || 'new'
-    }));
     
     // Filter for uploaded requests that haven't been approved/rejected yet
-    const reviewRequests = imageRequests.filter(r => {
-        console.log('Checking request:', r);
-        console.log('Status:', r.status);
-        console.log('Approval status:', r.approvalStatus);
-        return r.status === 'uploaded' && !r.approvalStatus;
-    });
-    
-    console.log('Filtered review requests:', reviewRequests);
+    const reviewRequests = imageRequests.filter(r => r.status === 'uploaded' && !r.approvalStatus);
     
     if (!reviewRequests || reviewRequests.length === 0) {
         reviewRequestsTable.innerHTML = `
@@ -439,8 +434,32 @@ function renderReviewRequests() {
     reviewRequestsTable.innerHTML = reviewRequests.map(request => `
         <tr>
             <td class="px-6 py-4 whitespace-nowrap">
-                <img src="${request.uploadedImage}" alt="${request.filename}" class="h-16 w-16 object-cover rounded cursor-pointer"
-                     onclick="showImagePreview('${request.uploadedImage}')">
+                <div class="flex flex-col space-y-2">
+                    <div class="relative">
+                        <img src="${request.uploadedImage}" 
+                             alt="${request.filename}" 
+                             class="h-16 w-16 object-cover rounded cursor-pointer"
+                             onclick="showImagePreview('${request.uploadedImage}')"
+                             title="Current Version">
+                        <span class="absolute top-0 right-0 px-1.5 py-0.5 text-xs font-medium bg-blue-100 text-blue-800 rounded">New</span>
+                    </div>
+                    ${request.type === 'revision' && request.revisionHistory && request.revisionHistory.length > 0 ? `
+                        <div class="relative">
+                            <img src="${request.revisionHistory[request.revisionHistory.length - 1].image}" 
+                                 alt="Previous version" 
+                                 class="h-16 w-16 object-cover rounded cursor-pointer opacity-70"
+                                 onclick="showImagePreview('${request.revisionHistory[request.revisionHistory.length - 1].image}')"
+                                 title="Previous Version">
+                            <span class="absolute top-0 right-0 px-1.5 py-0.5 text-xs font-medium bg-gray-100 text-gray-800 rounded">Previous</span>
+                        </div>
+                        <div class="text-xs text-gray-500">
+                            <i class="fas fa-comment-alt mr-1"></i>Previous Feedback:
+                            <div class="mt-1 text-gray-700 bg-gray-50 p-1.5 rounded text-wrap max-w-[200px] break-words">
+                                ${request.revisionHistory[request.revisionHistory.length - 1].feedback}
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
             </td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${request.filename}</td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${request.description}</td>
@@ -454,25 +473,66 @@ function renderReviewRequests() {
                 <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${request.type === 'revision' ? 'bg-orange-100 text-orange-800' : 'bg-blue-100 text-blue-800'}">
                     ${request.type === 'revision' ? 'Revision' : 'New Upload'}
                 </span>
-                ${(request.revisionHistory || []).length > 0 ? `
+                ${request.revisionHistory && request.revisionHistory.length > 0 ? `
                     <div class="mt-1 text-sm text-gray-500">
                         <i class="fas fa-history mr-1"></i>Revision #${request.revisionHistory.length}
                     </div>
                 ` : ''}
             </td>
             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                <button onclick="handleApproval('${request.id}', true)" class="text-green-600 hover:text-green-900 mr-2">
-                    Approve
-                </button>
-                <button onclick="handleApproval('${request.id}', false, prompt('Please provide feedback for rejection:'))" class="text-red-600 hover:text-red-900">
-                    Reject
-                </button>
+                <div class="flex flex-col space-y-2">
+                    <button onclick="handleApproval('${request.id}', true)" class="inline-flex items-center justify-center px-3 py-1.5 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-md">
+                        <i class="fas fa-check mr-1.5"></i>Approve
+                    </button>
+                    <button onclick="showRejectDialog('${request.id}')" class="inline-flex items-center justify-center px-3 py-1.5 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md">
+                        <i class="fas fa-times mr-1.5"></i>Reject
+                    </button>
+                </div>
             </td>
         </tr>
     `).join('');
+}
+
+// Add a function to handle the reject dialog
+function showRejectDialog(requestId) {
+    // Create a modal for rejection feedback
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+    modal.innerHTML = `
+        <div class="bg-white rounded-lg p-6 max-w-lg w-full mx-4">
+            <h3 class="text-lg font-medium text-gray-900 mb-4">Provide Rejection Feedback</h3>
+            <textarea id="rejection-feedback" 
+                      class="w-full h-32 px-3 py-2 text-base text-gray-700 border rounded-lg focus:outline-none focus:border-blue-500"
+                      placeholder="Please provide feedback for the rejection..."></textarea>
+            <div class="mt-4 flex justify-end space-x-3">
+                <button onclick="this.closest('.fixed').remove()" 
+                        class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md">
+                    Cancel
+                </button>
+                <button onclick="submitRejection('${requestId}')" 
+                        class="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md">
+                    Submit Rejection
+                </button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+// Add a function to handle the rejection submission
+function submitRejection(requestId) {
+    const feedbackElement = document.getElementById('rejection-feedback');
+    const feedback = feedbackElement ? feedbackElement.value.trim() : '';
     
-    // Save the normalized data back to localStorage
-    saveToLocalStorage();
+    if (!feedback) {
+        alert('Please provide feedback for the rejection.');
+        return;
+    }
+    
+    handleApproval(requestId, false, feedback);
+    
+    // Remove the modal
+    feedbackElement.closest('.fixed').remove();
 }
 
 // Utility Functions
@@ -492,10 +552,16 @@ function loadFromLocalStorage() {
         renderTables();
     }
     
-    // Set initial active state for editor button
-    const editorBtn = document.querySelector('[data-role="editor"]');
-    editorBtn.classList.remove('bg-white', 'text-gray-900');
-    editorBtn.classList.add('bg-blue-700', 'text-white');
+    // Set initial states for all role buttons
+    document.querySelectorAll('.role-btn').forEach(btn => {
+        if (btn.dataset.role === currentRole) {
+            btn.classList.remove('bg-gray-100', 'text-gray-900', 'hover:bg-gray-200');
+            btn.classList.add('bg-blue-700', 'text-white');
+        } else {
+            btn.classList.remove('bg-blue-700', 'text-white');
+            btn.classList.add('bg-gray-100', 'text-gray-900', 'hover:bg-gray-200');
+        }
+    });
 }
 
 // Initial render

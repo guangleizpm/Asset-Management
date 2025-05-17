@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Image Management System</title>
+    <title>Image Management</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         .drag-over {
             border: 2px dashed #4299e1;
@@ -52,45 +52,73 @@
             text-overflow: ellipsis;
             white-space: nowrap;
         }
+        .nav-link {
+            position: relative;
+            padding-bottom: 2px;
+        }
+        .nav-link.active {
+            color: #3B82F6;
+            font-weight: 500;
+        }
+        .nav-link.active::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background-color: #3B82F6;
+        }
     </style>
 </head>
-<body class="bg-gray-100 min-h-screen">
-    <!-- Header -->
-    <header class="bg-white shadow-md sticky top-0 z-10">
-        <div class="container mx-auto px-4 py-4">
-            <div class="flex justify-between items-center">
-                <div class="flex items-center space-x-8">
-                    <h1 class="text-2xl font-bold text-gray-800">Image Management System</h1>
-                    <nav class="hidden sm:flex space-x-4">
-                        <a href="index.html" class="text-blue-500 hover:text-blue-700 px-3 py-2 rounded-md">Asset Management</a>
-                        <a href="image-workflow.html" class="text-gray-500 hover:text-gray-700 px-3 py-2 rounded-md">Workflow</a>
-                    </nav>
+<body class="bg-gray-50">
+    <!-- Header Navigation -->
+    <header class="bg-white shadow-md fixed w-full top-0 z-50">
+        <div class="max-w-7xl mx-auto">
+            <div class="flex justify-between items-center h-16 px-4 sm:px-6 lg:px-8">
+                <div class="flex-shrink-0">
+                    <h1 class="text-xl font-bold text-gray-800">Asset Management System</h1>
                 </div>
-                <div class="flex space-x-4">
-                    <button id="uploadBtn" class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors">
-                        <i class="fas fa-upload mr-2"></i>Upload
-                    </button>
-                </div>
-            </div>
-            <!-- Search and Filter Bar -->
-            <div class="mt-4 flex space-x-4">
-                <div class="flex-1 relative">
-                    <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
-                    <input type="text" id="searchInput" placeholder="Search images..." 
-                        class="w-full pl-10 pr-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
-                <select id="categoryFilter" class="px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <option value="">All Categories</option>
-                    <option value="nature">Nature</option>
-                    <option value="work">Work</option>
-                    <option value="personal">Personal</option>
-                </select>
+                <nav class="flex space-x-8">
+                    <a href="image_management.html" class="nav-link active text-gray-900 hover:text-gray-900 px-3 py-2 text-sm font-medium">Image Management</a>
+                    <a href="image-workflow.html" class="nav-link text-gray-500 hover:text-gray-900 px-3 py-2 text-sm font-medium">Image Workflow</a>
+                    <div class="border-l border-gray-300 h-6 self-center"></div>
+                    <a href="video_management.html" class="nav-link text-gray-500 hover:text-gray-900 px-3 py-2 text-sm font-medium">Video Management</a>
+                    <a href="video-workflow.html" class="nav-link text-gray-500 hover:text-gray-900 px-3 py-2 text-sm font-medium">Video Workflow</a>
+                </nav>
             </div>
         </div>
     </header>
 
-    <!-- Main Content -->
-    <main class="container mx-auto px-4 py-8">
+    <!-- Main Content with top padding to account for fixed header -->
+    <div class="min-h-screen pt-16">
+        <!-- Search and Filter Bar -->
+        <div class="mb-8 bg-white shadow rounded-lg p-4">
+            <div class="flex flex-col md:flex-row gap-4">
+                <div class="flex-1">
+                    <label for="searchInput" class="block text-sm font-medium text-gray-700 mb-1">Search</label>
+                    <div class="relative">
+                        <input type="text" id="searchInput" 
+                            class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-10" 
+                            placeholder="Search by filename, tags, or description...">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <i class="fas fa-search text-gray-400"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="w-full md:w-48">
+                    <label for="categoryFilter" class="block text-sm font-medium text-gray-700 mb-1">Project</label>
+                    <select id="categoryFilter" class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        <option value="">All Projects</option>
+                        <option value="9000-algebra-1">9000 Algebra I</option>
+                        <option value="9000-algebra-2">9000 Algebra II</option>
+                        <option value="9000-geometry">9000 Geometry</option>
+                        <option value="20052-imageplus">20052 ImagePlus Math 3-12</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
         <!-- Drop Zone -->
         <div id="dropZone" class="mb-8 border-2 border-dashed border-gray-300 rounded-lg p-8 text-center transition-colors">
             <i class="fas fa-cloud-upload-alt text-4xl text-gray-400 mb-4"></i>
@@ -120,7 +148,7 @@
                                 Upload Date <i class="fas fa-sort ml-1"></i>
                             </th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" data-sort="category">
-                                Category <i class="fas fa-sort ml-1"></i>
+                                Project <i class="fas fa-sort ml-1"></i>
                             </th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" data-sort="size">
                                 Size <i class="fas fa-sort ml-1"></i>
@@ -143,7 +171,7 @@
             <span id="pageInfo" class="px-4 py-2">Page <span id="currentPage">1</span> of <span id="totalPages">1</span></span>
             <button class="px-4 py-2 bg-gray-200 rounded-md hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors" id="nextPage">Next</button>
         </div>
-    </main>
+    </div>
 
     <!-- Image Preview Modal -->
     <div id="imageModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
