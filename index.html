@@ -19,9 +19,38 @@
         }
         th {
             cursor: pointer;
+            position: relative;
+            user-select: none;
         }
         th:hover {
             background-color: #f3f4f6;
+        }
+        .resizer {
+            position: absolute;
+            right: 0;
+            top: 0;
+            height: 100%;
+            width: 5px;
+            background: rgba(0, 0, 0, 0.1);
+            cursor: col-resize;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        th:hover .resizer {
+            opacity: 1;
+        }
+        .resizer.active {
+            opacity: 1;
+            background: rgba(0, 0, 0, 0.2);
+        }
+        table {
+            table-layout: fixed;
+            width: 100%;
+        }
+        th, td {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
     </style>
 </head>
@@ -188,5 +217,6 @@
         </div>
     </div>
     <script src="script.js"></script>
+    <script src="table-resize.js"></script>
 </body>
 </html> 
