@@ -23,10 +23,8 @@ const saveImageDetails = document.getElementById('saveImageDetails');
 const deleteImage = document.getElementById('deleteImage');
 const prevPage = document.getElementById('prevPage');
 const nextPage = document.getElementById('nextPage');
-const pageNumbers = document.getElementById('pageNumbers');
-const recordsPerPage = document.getElementById('recordsPerPage');
-const pageJump = document.getElementById('pageJump');
-const jumpToPage = document.getElementById('jumpToPage');
+const currentPageSpan = document.getElementById('currentPage');
+const totalPagesSpan = document.getElementById('totalPages');
 
 // Add sort event listeners
 document.querySelectorAll('th[data-sort]').forEach(th => {
@@ -99,126 +97,74 @@ function formatFileSize(bytes) {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
-// Event Listeners
-dropZone.addEventListener('dragover', handleDragOver);
-dropZone.addEventListener('dragleave', handleDragLeave);
-dropZone.addEventListener('drop', handleDrop);
-dropZone.addEventListener('click', () => fileInput.click());
-fileInput.addEventListener('change', handleFileSelect);
-uploadBtn.addEventListener('click', () => fileInput.click());
-searchInput.addEventListener('input', filterImages);
-categoryFilter.addEventListener('change', filterImages);
-closeModal.addEventListener('click', () => imageModal.classList.add('hidden'));
-prevPage.addEventListener('click', () => changePage(-1));
-nextPage.addEventListener('click', () => changePage(1));
-
-// Drag and Drop Handlers
-function handleDragOver(e) {
-    e.preventDefault();
-    dropZone.classList.add('drag-over');
-}
-
-function handleDragLeave(e) {
-    e.preventDefault();
-    dropZone.classList.remove('drag-over');
-}
-
-function handleDrop(e) {
-    e.preventDefault();
-    dropZone.classList.remove('drag-over');
-    const files = Array.from(e.dataTransfer.files).filter(file => file.type.startsWith('image/'));
-    handleFiles(files);
-}
-
-function handleFileSelect(e) {
-    const files = Array.from(e.target.files);
-    handleFiles(files);
-}
-
-// File Processing
-async function handleFiles(files) {
-    for (const file of files) {
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-            const now = new Date();
-            const image = {
-                id: await generateTimestampUUID(),
-                src: e.target.result,
-                name: file.name,
-                tags: [],
-                category: '',
-                description: '',
-                date: now.toISOString(),
-                size: file.size,
-                uploader: "guanglei.zhang",
-                uuid: await generateTimestampUUID(),
-                timestamp: now.getTime()
-            };
-            images.unshift(image);
-            saveToLocalStorage();
-            renderImages();
-        };
-        reader.readAsDataURL(file);
-    }
-}
-
 // Image Display
 function renderImages() {
-    const filteredImages = filterImagesList();
+    console.log('Rendering images. Total images:', images.length);
     
-    // Sort images
-    filteredImages.sort((a, b) => {
-        let comparison = 0;
-        switch (currentSortColumn) {
-            case 'name':
-                comparison = a.name.localeCompare(b.name);
-                break;
-            case 'date':
-                comparison = new Date(a.date) - new Date(b.date);
-                break;
-            case 'size':
-                comparison = a.size - b.size;
-                break;
-            case 'category':
-                comparison = a.category.localeCompare(b.category);
-                break;
-            case 'uploader':
-                comparison = a.uploader.localeCompare(b.uploader);
-                break;
-            case 'uuid':
-                comparison = a.uuid.localeCompare(b.uuid);
-                break;
-            default:
-                comparison = new Date(a.date) - new Date(b.date);
-        }
-        return sortDirection === 'asc' ? comparison : -comparison;
-    });
+    try {
+        const filteredImages = filterImagesList();
+        console.log('Filtered images:', filteredImages.length);
+        
+        // Sort images
+        filteredImages.sort((a, b) => {
+            let comparison = 0;
+            switch (currentSortColumn) {
+                case 'name':
+                    comparison = a.name.localeCompare(b.name);
+                    break;
+                case 'date':
+                    comparison = new Date(a.date) - new Date(b.date);
+                    break;
+                case 'size':
+                    comparison = a.size - b.size;
+                    break;
+                case 'category':
+                    comparison = (a.category || '').localeCompare(b.category || '');
+                    break;
+                case 'uploader':
+                    comparison = (a.uploader || '').localeCompare(b.uploader || '');
+                    break;
+                case 'uuid':
+                    comparison = (a.uuid || '').localeCompare(b.uuid || '');
+                    break;
+                default:
+                    comparison = new Date(b.date) - new Date(a.date); // Default to newest first
+            }
+            return sortDirection === 'asc' ? comparison : -comparison;
+        });
 
     const totalPages = Math.ceil(filteredImages.length / imagesPerPage);
-    
-    // Update page jump input max value
-    pageJump.max = totalPages;
-    
-    // Ensure current page is valid
-    currentPage = Math.max(1, Math.min(currentPage, totalPages));
-    
     const start = (currentPage - 1) * imagesPerPage;
     const end = start + imagesPerPage;
     const pageImages = filteredImages.slice(start, end);
 
-    imageTableBody.innerHTML = '';
-    pageImages.forEach(image => {
-        const row = createTableRow(image);
-        imageTableBody.appendChild(row);
-    });
+        console.log('Rendering page', currentPage, 'of', totalPages);
+        console.log('Displaying images', start + 1, 'to', end);
 
-    // Update pagination controls
-    prevPage.disabled = currentPage === 1;
-    nextPage.disabled = currentPage === totalPages;
-    createPageNumbers(totalPages);
-    
-    // Update page jump input
-    pageJump.value = currentPage;
+        // Clear the table body
+        if (imageTableBody) {
+            imageTableBody.innerHTML = '';
+            
+            if (pageImages.length === 0) {
+                imageTableBody.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="px-6 py-4 text-center text-gray-500">
+                            No images found
+                        </td>
+                    </tr>
+                `;
+            } else {
+                pageImages.forEach(image => {
+                    try {
+                        const row = createTableRow(image);
+                        imageTableBody.appendChild(row);
+                    } catch (error) {
+                        console.error('Error creating row for image:', image, error);
+                    }
+                });
+            }
+
+    updatePagination(totalPages);
 }
 
 function createTableRow(image) {
@@ -368,23 +314,36 @@ function filterImages() {
     renderImages();
 }
 
-function filterImagesList() {
-    const searchTerm = searchInput.value.toLowerCase();
-    const category = categoryFilter.value;
+// Pagination
+function updatePagination(totalPages) {
+    currentPageSpan.textContent = currentPage;
+    totalPagesSpan.textContent = totalPages;
     
-    return images.filter(image => {
-        const matchesSearch = 
-            image.name.toLowerCase().includes(searchTerm) ||
-            image.description.toLowerCase().includes(searchTerm) ||
-            image.tags.some(tag => tag.toLowerCase().includes(searchTerm));
-        
-        const matchesCategory = !category || image.category === category;
-        
-        return matchesSearch && matchesCategory;
+    // Update button states
+    prevPage.disabled = currentPage === 1;
+    nextPage.disabled = currentPage === totalPages;
+
+    // Add page input functionality
+    const pageInput = document.createElement('input');
+    pageInput.type = 'number';
+    pageInput.min = 1;
+    pageInput.max = totalPages;
+    pageInput.value = currentPage;
+    pageInput.className = 'w-16 px-2 py-1 text-center border rounded-md mx-2';
+    
+    // Replace the current page span with the input
+    currentPageSpan.parentNode.replaceChild(pageInput, currentPageSpan);
+    
+    // Add event listener for page input
+    pageInput.addEventListener('change', () => {
+        let newPage = parseInt(pageInput.value);
+        if (newPage < 1) newPage = 1;
+        if (newPage > totalPages) newPage = totalPages;
+        currentPage = newPage;
+        renderImages();
     });
 }
 
-// Pagination
 function changePage(delta) {
     const filteredImages = filterImagesList();
     const totalPages = Math.ceil(filteredImages.length / imagesPerPage);
@@ -392,62 +351,11 @@ function changePage(delta) {
     renderImages();
 }
 
-// Function to create page number buttons
-function createPageNumbers(totalPages) {
-    pageNumbers.innerHTML = '';
-    const maxButtons = 5;
-    let startPage = Math.max(1, currentPage - Math.floor(maxButtons / 2));
-    let endPage = Math.min(totalPages, startPage + maxButtons - 1);
-
-    if (endPage - startPage + 1 < maxButtons) {
-        startPage = Math.max(1, endPage - maxButtons + 1);
-    }
-
-    // Add first page button if not in range
-    if (startPage > 1) {
-        const firstBtn = createPageButton(1);
-        pageNumbers.appendChild(firstBtn);
-        if (startPage > 2) {
-            const ellipsis = document.createElement('span');
-            ellipsis.textContent = '...';
-            ellipsis.className = 'px-2 py-1 text-gray-600';
-            pageNumbers.appendChild(ellipsis);
-        }
-    }
-
-    // Add page numbers
-    for (let i = startPage; i <= endPage; i++) {
-        const pageBtn = createPageButton(i);
-        pageNumbers.appendChild(pageBtn);
-    }
-
-    // Add last page button if not in range
-    if (endPage < totalPages) {
-        if (endPage < totalPages - 1) {
-            const ellipsis = document.createElement('span');
-            ellipsis.textContent = '...';
-            ellipsis.className = 'px-2 py-1 text-gray-600';
-            pageNumbers.appendChild(ellipsis);
-        }
-        const lastBtn = createPageButton(totalPages);
-        pageNumbers.appendChild(lastBtn);
-    }
-}
-
-// Function to create a single page number button
-function createPageButton(pageNum) {
-    const button = document.createElement('button');
-    button.textContent = pageNum;
-    button.className = `px-3 py-1 rounded-md transition-colors ${
-        pageNum === currentPage 
-            ? 'bg-blue-500 text-white' 
-            : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
-    }`;
-    button.addEventListener('click', () => {
-        currentPage = pageNum;
-        renderImages();
-    });
-    return button;
+function updatePagination(totalPages) {
+    prevPage.disabled = currentPage === 1;
+    nextPage.disabled = currentPage === totalPages;
+    currentPageSpan.textContent = currentPage;
+    totalPagesSpan.textContent = totalPages;
 }
 
 // Local Storage
@@ -501,11 +409,83 @@ function loadFromLocalStorage() {
     const stored = localStorage.getItem('images');
     if (stored) {
         images = JSON.parse(stored);
+        console.log('Loaded images from localStorage:', images);
         renderImages();
     } else {
+        console.log('No images found in localStorage, initializing with placeholder images...');
         initializePlaceholderImages();
     }
 }
 
-// Initialize
-loadFromLocalStorage(); 
+// File Processing
+async function handleFiles(files) {
+    console.log('Starting to process files:', files);
+    
+    if (!files || files.length === 0) {
+        console.log('No files to process');
+        return;
+    }
+
+    try {
+        for (const file of files) {
+            console.log('Processing file:', file.name, 'Type:', file.type);
+            
+            if (!file.type.startsWith('image/')) {
+                console.log('Skipping non-image file:', file.name);
+                continue;
+            }
+
+            await processImageFile(file);
+        }
+    } catch (error) {
+        console.error('Error processing files:', error);
+    }
+}
+
+async function processImageFile(file) {
+    return new Promise((resolve, reject) => {
+        console.log('Reading file:', file.name);
+        const reader = new FileReader();
+
+        reader.onload = async (e) => {
+            try {
+                console.log('File read successfully:', file.name);
+                const now = new Date();
+                const image = {
+                    id: await generateTimestampUUID(),
+                    src: e.target.result,
+                    name: file.name,
+                    tags: [],
+                    category: '',
+                    description: '',
+                    date: now.toISOString(),
+                    size: file.size,
+                    uploader: "guanglei.zhang",
+                    uuid: await generateTimestampUUID(),
+                    timestamp: now.getTime()
+                };
+
+                console.log('Created image object:', image.name);
+                images.unshift(image);
+                saveToLocalStorage();
+                renderImages();
+                resolve();
+            } catch (error) {
+                console.error('Error processing image:', error);
+                reject(error);
+            }
+        };
+
+        reader.onerror = (error) => {
+            console.error('Error reading file:', error);
+            reject(error);
+        };
+
+        try {
+            reader.readAsDataURL(file);
+        } catch (error) {
+            console.error('Error starting file read:', error);
+            reject(error);
+        }
+    });
+} 
