@@ -1,133 +1,30 @@
 // Image storage (in real application, this would be a backend service)
 let images = [];
 let currentPage = 1;
-const imagesPerPage = 10;
+let imagesPerPage = 10;
 let currentSortColumn = 'date';
 let sortDirection = 'desc';
 
 // DOM Elements
-let dropZone, fileInput, imageTableBody, searchInput, categoryFilter, uploadBtn, 
-    imageModal, previewImage, closeModal, imageTitle, imageTags, imageCategory, 
-    imageDescription, saveImageDetails, deleteImage, prevPage, nextPage, 
-    currentPageSpan, totalPagesSpan;
-
-// Initialize DOM Elements
-function initializeDOMElements() {
-    dropZone = document.getElementById('dropZone');
-    fileInput = document.getElementById('fileInput');
-    imageTableBody = document.getElementById('imageTableBody');
-    searchInput = document.getElementById('searchInput');
-    categoryFilter = document.getElementById('categoryFilter');
-    uploadBtn = document.getElementById('uploadBtn');
-    imageModal = document.getElementById('imageModal');
-    previewImage = document.getElementById('previewImage');
-    closeModal = document.getElementById('closeModal');
-    imageTitle = document.getElementById('imageTitle');
-    imageTags = document.getElementById('imageTags');
-    imageCategory = document.getElementById('imageCategory');
-    imageDescription = document.getElementById('imageDescription');
-    saveImageDetails = document.getElementById('saveImageDetails');
-    deleteImage = document.getElementById('deleteImage');
-    prevPage = document.getElementById('prevPage');
-    nextPage = document.getElementById('nextPage');
-    currentPageSpan = document.getElementById('currentPage');
-    totalPagesSpan = document.getElementById('totalPages');
-
-    // Verify critical elements
-    if (!dropZone || !fileInput || !imageTableBody) {
-        console.error('Critical DOM elements not found!');
-        return false;
-    }
-    return true;
-}
-
-// Initialize Event Listeners
-function initializeEventListeners() {
-    // File Upload Event Listeners
-    dropZone.addEventListener('click', () => {
-        console.log('Drop zone clicked');
-        fileInput.click();
-    });
-
-    dropZone.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        console.log('Drag over event');
-        dropZone.classList.add('drag-over');
-    });
-
-    dropZone.addEventListener('dragleave', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        console.log('Drag leave event');
-        dropZone.classList.remove('drag-over');
-    });
-
-    dropZone.addEventListener('drop', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        console.log('Drop event occurred');
-        dropZone.classList.remove('drag-over');
-        
-        const files = e.dataTransfer.files;
-        console.log('Dropped files:', files);
-        handleFiles(Array.from(files));
-    });
-
-    fileInput.addEventListener('change', (e) => {
-        console.log('File input change event');
-        const files = e.target.files;
-        console.log('Selected files:', files);
-        handleFiles(Array.from(files));
-    });
-
-    // Other event listeners
-    if (searchInput) {
-        searchInput.addEventListener('input', filterImages);
-    }
-    if (categoryFilter) {
-        categoryFilter.addEventListener('change', filterImages);
-    }
-    if (closeModal) {
-        closeModal.addEventListener('click', () => imageModal.classList.add('hidden'));
-    }
-    if (prevPage) {
-        prevPage.addEventListener('click', () => changePage(-1));
-    }
-    if (nextPage) {
-        nextPage.addEventListener('click', () => changePage(1));
-    }
-}
-
-// Initialize on DOM content loaded
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('Initializing DOM elements...');
-    
-    if (initializeDOMElements()) {
-        console.log('DOM elements initialized successfully');
-        initializeEventListeners();
-        loadFromLocalStorage();
-    } else {
-        console.error('Failed to initialize DOM elements');
-    }
-});
-
-// Filtering and Search
-function filterImagesList() {
-    const searchTerm = searchInput?.value?.toLowerCase() || '';
-    const category = categoryFilter?.value || '';
-    
-    return images.filter(image => {
-        const matchesSearch = 
-            image.name.toLowerCase().includes(searchTerm) ||
-            (image.description || '').toLowerCase().includes(searchTerm) ||
-            (image.tags || []).some(tag => tag.toLowerCase().includes(searchTerm));
-        
-        const matchesCategory = !category || image.category === category;
-        
-        return matchesSearch && matchesCategory;
-    });
-}
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+const imageTableBody = document.getElementById('imageTableBody');
+const searchInput = document.getElementById('searchInput');
+const categoryFilter = document.getElementById('categoryFilter');
+const uploadBtn = document.getElementById('uploadBtn');
+const imageModal = document.getElementById('imageModal');
+const previewImage = document.getElementById('previewImage');
+const closeModal = document.getElementById('closeModal');
+const imageTitle = document.getElementById('imageTitle');
+const imageTags = document.getElementById('imageTags');
+const imageCategory = document.getElementById('imageCategory');
+const imageDescription = document.getElementById('imageDescription');
+const saveImageDetails = document.getElementById('saveImageDetails');
+const deleteImage = document.getElementById('deleteImage');
+const prevPage = document.getElementById('prevPage');
+const nextPage = document.getElementById('nextPage');
+const currentPageSpan = document.getElementById('currentPage');
+const totalPagesSpan = document.getElementById('totalPages');
 
 // Add sort event listeners
 document.querySelectorAll('th[data-sort]').forEach(th => {
@@ -141,6 +38,26 @@ document.querySelectorAll('th[data-sort]').forEach(th => {
         }
         renderImages();
     });
+});
+
+// Add event listeners for pagination controls
+recordsPerPage.addEventListener('change', (e) => {
+    imagesPerPage = parseInt(e.target.value);
+    currentPage = 1;
+    renderImages();
+});
+
+jumpToPage.addEventListener('click', () => {
+    const pageNum = parseInt(pageJump.value);
+    const filteredImages = filterImagesList();
+    const totalPages = Math.ceil(filteredImages.length / imagesPerPage);
+    
+    if (pageNum >= 1 && pageNum <= totalPages) {
+        currentPage = pageNum;
+        renderImages();
+    } else {
+        alert(`Please enter a page number between 1 and ${totalPages}`);
+    }
 });
 
 // Generate UUID using SHA-256 hash of timestamp and random salt
@@ -216,10 +133,10 @@ function renderImages() {
             return sortDirection === 'asc' ? comparison : -comparison;
         });
 
-        const totalPages = Math.ceil(filteredImages.length / imagesPerPage);
-        const start = (currentPage - 1) * imagesPerPage;
-        const end = start + imagesPerPage;
-        const pageImages = filteredImages.slice(start, end);
+    const totalPages = Math.ceil(filteredImages.length / imagesPerPage);
+    const start = (currentPage - 1) * imagesPerPage;
+    const end = start + imagesPerPage;
+    const pageImages = filteredImages.slice(start, end);
 
         console.log('Rendering page', currentPage, 'of', totalPages);
         console.log('Displaying images', start + 1, 'to', end);
@@ -247,13 +164,7 @@ function renderImages() {
                 });
             }
 
-            updatePagination(totalPages);
-        } else {
-            console.error('imageTableBody element not found!');
-        }
-    } catch (error) {
-        console.error('Error rendering images:', error);
-    }
+    updatePagination(totalPages);
 }
 
 function createTableRow(image) {
@@ -436,12 +347,15 @@ function updatePagination(totalPages) {
 function changePage(delta) {
     const filteredImages = filterImagesList();
     const totalPages = Math.ceil(filteredImages.length / imagesPerPage);
-    
-    const newPage = currentPage + delta;
-    if (newPage >= 1 && newPage <= totalPages) {
-        currentPage = newPage;
-        renderImages();
-    }
+    currentPage = Math.max(1, Math.min(currentPage + delta, totalPages));
+    renderImages();
+}
+
+function updatePagination(totalPages) {
+    prevPage.disabled = currentPage === 1;
+    nextPage.disabled = currentPage === totalPages;
+    currentPageSpan.textContent = currentPage;
+    totalPagesSpan.textContent = totalPages;
 }
 
 // Local Storage
