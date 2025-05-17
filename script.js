@@ -1,7 +1,7 @@
 // Image storage (in real application, this would be a backend service)
 let images = [];
 let currentPage = 1;
-const imagesPerPage = 10;
+let imagesPerPage = 10;
 let currentSortColumn = 'date';
 let sortDirection = 'desc';
 
@@ -23,8 +23,10 @@ const saveImageDetails = document.getElementById('saveImageDetails');
 const deleteImage = document.getElementById('deleteImage');
 const prevPage = document.getElementById('prevPage');
 const nextPage = document.getElementById('nextPage');
-const currentPageSpan = document.getElementById('currentPage');
-const totalPagesSpan = document.getElementById('totalPages');
+const pageNumbers = document.getElementById('pageNumbers');
+const recordsPerPage = document.getElementById('recordsPerPage');
+const pageJump = document.getElementById('pageJump');
+const jumpToPage = document.getElementById('jumpToPage');
 
 // Add sort event listeners
 document.querySelectorAll('th[data-sort]').forEach(th => {
@@ -38,6 +40,26 @@ document.querySelectorAll('th[data-sort]').forEach(th => {
         }
         renderImages();
     });
+});
+
+// Add event listeners for pagination controls
+recordsPerPage.addEventListener('change', (e) => {
+    imagesPerPage = parseInt(e.target.value);
+    currentPage = 1;
+    renderImages();
+});
+
+jumpToPage.addEventListener('click', () => {
+    const pageNum = parseInt(pageJump.value);
+    const filteredImages = filterImagesList();
+    const totalPages = Math.ceil(filteredImages.length / imagesPerPage);
+    
+    if (pageNum >= 1 && pageNum <= totalPages) {
+        currentPage = pageNum;
+        renderImages();
+    } else {
+        alert(`Please enter a page number between 1 and ${totalPages}`);
+    }
 });
 
 // Generate UUID using SHA-256 hash of timestamp and random salt
@@ -173,6 +195,13 @@ function renderImages() {
     });
 
     const totalPages = Math.ceil(filteredImages.length / imagesPerPage);
+    
+    // Update page jump input max value
+    pageJump.max = totalPages;
+    
+    // Ensure current page is valid
+    currentPage = Math.max(1, Math.min(currentPage, totalPages));
+    
     const start = (currentPage - 1) * imagesPerPage;
     const end = start + imagesPerPage;
     const pageImages = filteredImages.slice(start, end);
@@ -183,7 +212,13 @@ function renderImages() {
         imageTableBody.appendChild(row);
     });
 
-    updatePagination(totalPages);
+    // Update pagination controls
+    prevPage.disabled = currentPage === 1;
+    nextPage.disabled = currentPage === totalPages;
+    createPageNumbers(totalPages);
+    
+    // Update page jump input
+    pageJump.value = currentPage;
 }
 
 function createTableRow(image) {
@@ -357,11 +392,62 @@ function changePage(delta) {
     renderImages();
 }
 
-function updatePagination(totalPages) {
-    prevPage.disabled = currentPage === 1;
-    nextPage.disabled = currentPage === totalPages;
-    currentPageSpan.textContent = currentPage;
-    totalPagesSpan.textContent = totalPages;
+// Function to create page number buttons
+function createPageNumbers(totalPages) {
+    pageNumbers.innerHTML = '';
+    const maxButtons = 5;
+    let startPage = Math.max(1, currentPage - Math.floor(maxButtons / 2));
+    let endPage = Math.min(totalPages, startPage + maxButtons - 1);
+
+    if (endPage - startPage + 1 < maxButtons) {
+        startPage = Math.max(1, endPage - maxButtons + 1);
+    }
+
+    // Add first page button if not in range
+    if (startPage > 1) {
+        const firstBtn = createPageButton(1);
+        pageNumbers.appendChild(firstBtn);
+        if (startPage > 2) {
+            const ellipsis = document.createElement('span');
+            ellipsis.textContent = '...';
+            ellipsis.className = 'px-2 py-1 text-gray-600';
+            pageNumbers.appendChild(ellipsis);
+        }
+    }
+
+    // Add page numbers
+    for (let i = startPage; i <= endPage; i++) {
+        const pageBtn = createPageButton(i);
+        pageNumbers.appendChild(pageBtn);
+    }
+
+    // Add last page button if not in range
+    if (endPage < totalPages) {
+        if (endPage < totalPages - 1) {
+            const ellipsis = document.createElement('span');
+            ellipsis.textContent = '...';
+            ellipsis.className = 'px-2 py-1 text-gray-600';
+            pageNumbers.appendChild(ellipsis);
+        }
+        const lastBtn = createPageButton(totalPages);
+        pageNumbers.appendChild(lastBtn);
+    }
+}
+
+// Function to create a single page number button
+function createPageButton(pageNum) {
+    const button = document.createElement('button');
+    button.textContent = pageNum;
+    button.className = `px-3 py-1 rounded-md transition-colors ${
+        pageNum === currentPage 
+            ? 'bg-blue-500 text-white' 
+            : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+    }`;
+    button.addEventListener('click', () => {
+        currentPage = pageNum;
+        renderImages();
+    });
+    return button;
 }
 
 // Local Storage
