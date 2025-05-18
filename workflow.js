@@ -208,24 +208,26 @@ function handleFileUpload(requestId) {
                 // Ensure all required properties exist
                 request.revisionHistory = request.revisionHistory || [];
                 request.approvalStatus = request.approvalStatus || null;
-                request.type = request.type || 'new';
                 
                 // If this is a revision, store the previous version in history
                 if (request.type === 'revision' && request.uploadedImage) {
                     request.revisionHistory.push({
                         image: request.uploadedImage,
-                        timestamp: new Date().toISOString(),
-                        size: request.size,
-                        type: request.type
+                        uploadedAt: request.uploadedAt,
+                        feedback: request.feedback,
+                        size: request.size
                     });
                 }
 
                 // Update request with new image
                 request.uploadedImage = e.target.result;
-                request.status = 'uploaded';
+                request.status = 'uploaded';  // This ensures it shows up in approver's view
                 request.size = formatFileSize(file.size);
-                request.type = 'new';
                 request.uploadedAt = new Date().toISOString();
+                request.approvalStatus = null;  // Reset approval status for new upload
+                request.feedback = null;  // Clear previous feedback
+
+                console.log('Updated request:', request); // Debug log
 
                 // Save changes
                 saveToLocalStorage();
@@ -439,7 +441,13 @@ function renderReviewRequests() {
     console.log('Rendering review requests...');
     
     // Filter for uploaded requests that haven't been approved/rejected yet
-    const reviewRequests = imageRequests.filter(r => r.status === 'uploaded' && !r.approvalStatus);
+    const reviewRequests = imageRequests.filter(r => {
+        // Show requests that are uploaded and not yet approved/rejected
+        // Also include revision requests that have been uploaded
+        return r.status === 'uploaded' && !r.approvalStatus;
+    });
+    
+    console.log('Review requests:', reviewRequests); // Debug log
     
     if (!reviewRequests || reviewRequests.length === 0) {
         reviewRequestsTable.innerHTML = `
