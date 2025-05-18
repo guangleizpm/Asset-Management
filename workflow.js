@@ -184,11 +184,27 @@ function handleFileUpload(requestId) {
         const file = e.target.files[0];
         if (!file) return;
 
+        // Validate file type
+        if (!file.type.startsWith('image/')) {
+            alert('Please select an image file.');
+            return;
+        }
+
+        // Validate file size (max 10MB)
+        if (file.size > 10 * 1024 * 1024) {
+            alert('File size must be less than 10MB.');
+            return;
+        }
+
         const reader = new FileReader();
         reader.onload = async (e) => {
-            const request = imageRequests.find(r => r.id === requestId);
-            console.log('Processing upload for request:', request);
-            if (request) {
+            try {
+                const request = imageRequests.find(r => r.id === requestId);
+                if (!request) {
+                    console.error('Request not found:', requestId);
+                    return;
+                }
+
                 // Ensure all required properties exist
                 request.revisionHistory = request.revisionHistory || [];
                 request.approvalStatus = request.approvalStatus || null;
@@ -198,36 +214,41 @@ function handleFileUpload(requestId) {
                 if (request.type === 'revision' && request.uploadedImage) {
                     request.revisionHistory.push({
                         image: request.uploadedImage,
-                        uploadedAt: request.uploadedAt,
-                        feedback: request.feedback
+                        timestamp: new Date().toISOString(),
+                        size: request.size,
+                        type: request.type
                     });
                 }
-                
+
+                // Update request with new image
                 request.uploadedImage = e.target.result;
                 request.status = 'uploaded';
+                request.size = formatFileSize(file.size);
+                request.type = 'new';
                 request.uploadedAt = new Date().toISOString();
-                request.size = file.size;
-                request.approvalStatus = null;  // Reset approval status for new uploads
-                
-                console.log('Updated request before save:', request);
-                
-                // Save to localStorage immediately
+
+                // Save changes
                 saveToLocalStorage();
-                
-                // Force reload from localStorage to ensure state is consistent
-                loadFromLocalStorage();
-                
-                // Render tables with updated data
                 renderTables();
-                
-                console.log('Upload complete. Updated request:', request);
-                console.log('Current role:', currentRole);
-                console.log('Total requests:', imageRequests.length);
-                console.log('Uploaded requests:', imageRequests.filter(r => r.status === 'uploaded' && !r.approvalStatus).length);
-            } else {
-                console.error('Request not found with ID:', requestId);
+
+                // Show success message
+                const successMessage = document.createElement('div');
+                successMessage.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded shadow-lg';
+                successMessage.textContent = 'Image uploaded successfully!';
+                document.body.appendChild(successMessage);
+                setTimeout(() => successMessage.remove(), 3000);
+
+            } catch (error) {
+                console.error('Error uploading image:', error);
+                alert('Error uploading image. Please try again.');
             }
         };
+
+        reader.onerror = () => {
+            console.error('Error reading file');
+            alert('Error reading file. Please try again.');
+        };
+
         reader.readAsDataURL(file);
     };
 
