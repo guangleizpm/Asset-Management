@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Video Management</title>
+    <title>Audio Management</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
@@ -52,9 +52,8 @@
             text-overflow: ellipsis;
             white-space: nowrap;
         }
-        .video-preview {
+        .audio-preview {
             max-width: 320px;
-            max-height: 180px;
         }
         .nav-link {
             position: relative;
@@ -87,10 +86,10 @@
                     <a href="image_management.html" class="nav-link text-gray-500 hover:text-gray-900 px-3 py-2 text-sm font-medium">Image Management</a>
                     <a href="image-workflow.html" class="nav-link text-gray-500 hover:text-gray-900 px-3 py-2 text-sm font-medium">Image Workflow</a>
                     <div class="border-l border-gray-300 h-6 self-center"></div>
-                    <a href="video_management.html" class="nav-link active text-gray-900 hover:text-gray-900 px-3 py-2 text-sm font-medium">Video Management</a>
+                    <a href="video_management.html" class="nav-link text-gray-500 hover:text-gray-900 px-3 py-2 text-sm font-medium">Video Management</a>
                     <a href="video-workflow.html" class="nav-link text-gray-500 hover:text-gray-900 px-3 py-2 text-sm font-medium">Video Workflow</a>
                     <div class="border-l border-gray-300 h-6 self-center"></div>
-                    <a href="audio_management.html" class="nav-link text-gray-500 hover:text-gray-900 px-3 py-2 text-sm font-medium">Audio Management</a>
+                    <a href="audio_management.html" class="nav-link active text-gray-900 hover:text-gray-900 px-3 py-2 text-sm font-medium">Audio Management</a>
                     <a href="audio-workflow.html" class="nav-link text-gray-500 hover:text-gray-900 px-3 py-2 text-sm font-medium">Audio Workflow</a>
                 </nav>
             </div>
@@ -129,8 +128,8 @@
         <!-- Drop Zone -->
         <div id="dropZone" class="mb-8 border-2 border-dashed border-gray-300 rounded-lg p-4 text-center transition-colors max-w-2xl mx-auto">
             <i class="fas fa-cloud-upload-alt text-2xl text-gray-400 mb-2"></i>
-            <p class="text-sm text-gray-600">Drag and drop videos here or click to upload</p>
-            <input type="file" id="fileInput" multiple accept="video/*" class="hidden">
+            <p class="text-sm text-gray-600">Drag and drop audio files here or click to upload</p>
+            <input type="file" id="fileInput" multiple accept="audio/*" class="hidden">
         </div>
 
         <!-- Table View -->
@@ -165,8 +164,8 @@
                             </th>
                         </tr>
                     </thead>
-                    <tbody id="videoTableBody" class="bg-white divide-y divide-gray-200">
-                        <!-- Videos will be dynamically added here -->
+                    <tbody id="audioTableBody" class="bg-white divide-y divide-gray-200">
+                        <!-- Audio files will be dynamically added here -->
                     </tbody>
                 </table>
             </div>
@@ -180,35 +179,35 @@
         </div>
     </div>
 
-    <!-- Video Preview Modal -->
-    <div id="videoModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
+    <!-- Audio Preview Modal -->
+    <div id="audioModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
         <div class="bg-white rounded-lg p-4 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
             <div class="flex justify-between items-center mb-4">
-                <h3 class="text-xl font-bold">Video Details</h3>
+                <h3 class="text-xl font-bold">Audio Details</h3>
                 <button id="closeModal" class="text-gray-500 hover:text-gray-700 transition-colors">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
             <div class="flex flex-col md:flex-row gap-4">
                 <div class="flex-1">
-                    <video id="previewVideo" controls class="w-full rounded-lg">
-                        <source src="" type="video/mp4">
-                        Your browser does not support the video tag.
-                    </video>
+                    <audio id="previewAudio" controls class="w-full">
+                        <source src="" type="audio/mpeg">
+                        Your browser does not support the audio element.
+                    </audio>
                 </div>
                 <div class="flex-1">
                     <div class="space-y-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700">File Name</label>
-                            <input type="text" id="videoTitle" class="mt-1 w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <input type="text" id="audioTitle" class="mt-1 w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700">Tags</label>
-                            <input type="text" id="videoTags" class="mt-1 w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Add tags (comma separated)">
+                            <input type="text" id="audioTags" class="mt-1 w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Add tags (comma separated)">
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700">Category</label>
-                            <select id="videoCategory" class="mt-1 w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <select id="audioCategory" class="mt-1 w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                                 <option value="tutorial">Tutorial</option>
                                 <option value="presentation">Presentation</option>
                                 <option value="marketing">Marketing</option>
@@ -216,14 +215,14 @@
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700">Description</label>
-                            <textarea id="videoDescription" class="mt-1 w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" rows="3"></textarea>
+                            <textarea id="audioDescription" class="mt-1 w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" rows="3"></textarea>
                         </div>
                         <div class="flex space-x-2">
-                            <button id="saveVideoDetails" class="flex-1 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors">
+                            <button id="saveAudioDetails" class="flex-1 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors">
                                 <i class="fas fa-save mr-2"></i>Save Changes
                             </button>
-                            <button id="deleteVideo" class="flex-1 px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors">
-                                <i class="fas fa-trash-alt mr-2"></i>Delete Video
+                            <button id="deleteAudio" class="flex-1 px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors">
+                                <i class="fas fa-trash-alt mr-2"></i>Delete Audio
                             </button>
                         </div>
                     </div>
@@ -231,7 +230,7 @@
             </div>
         </div>
     </div>
-    <script src="video_script.js"></script>
+    <script src="audio_script.js"></script>
     <script src="table-resize.js"></script>
 </body>
 </html> 
